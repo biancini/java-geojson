@@ -21,10 +21,13 @@ package org.mapfish.geo;
 
 /**
  * Base class for GeoJSON objects
- *
+ * 
  * @author Eric Lemoine, Camptocamp.
  */
 public interface MfGeo {
-    public enum GeoType {GEOMETRY, FEATURE, FEATURECOLLECTION}
-    public GeoType getGeoType();
+	public enum GeoType {
+		GEOMETRY, GEOMETRYCOLLECTION, FEATURE, FEATURECOLLECTION
+	}
+
+	public GeoType getGeoType();
 }

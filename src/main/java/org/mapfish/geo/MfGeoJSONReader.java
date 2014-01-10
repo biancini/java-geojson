@@ -19,6 +19,14 @@
 
 package org.mapfish.geo;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -26,150 +34,148 @@ import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.LinearRing;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collection;
 
 public class MfGeoJSONReader {
-    private final MfGeoFactory mfFactory;
-    private final GeometryFactory jtsFactory;
+	private final MfGeoFactory mfFactory;
+	private final GeometryFactory jtsFactory;
 
-    public MfGeoJSONReader(MfGeoFactory mfFactory) {
-        this(mfFactory, new GeometryFactory());
-    }
+	public MfGeoJSONReader(MfGeoFactory mfFactory) {
+		this(mfFactory, new GeometryFactory());
+	}
 
-    public MfGeoJSONReader(MfGeoFactory mfFactory, GeometryFactory jtsFactory) {
-        this.mfFactory = mfFactory;
-        this.jtsFactory = jtsFactory;
-    }
+	public MfGeoJSONReader(MfGeoFactory mfFactory, GeometryFactory jtsFactory) {
+		this.mfFactory = mfFactory;
+		this.jtsFactory = jtsFactory;
+	}
 
-    public MfGeo decode(InputStream input) throws JSONException {
-        JSONObject json = new JSONObject(input);
-        return decode(json);
-    }
+	public MfGeo decode(InputStream input) throws JSONException {
+		JSONObject json = new JSONObject(input);
+		return decode(json);
+	}
 
-    public MfGeo decode(String input) throws JSONException {
-        JSONObject json = new JSONObject(input);
-        return decode(json);
-    }
+	public MfGeo decode(String input) throws JSONException {
+		JSONObject json = new JSONObject(input);
+		return decode(json);
+	}
 
-    public MfGeo decode(JSONObject json) throws JSONException {
-        final String type = json.getString("type");
-        if (type.equals("FeatureCollection")) {
-            return decodeFeatureCollection(json);
-        } else if (type.equals("Feature")) {
-            return decodeFeature(json);
-        } else {
-            return decodeGeometry(json);
-        }
-    }
+	public MfGeo decode(JSONObject json) throws JSONException {
+		final String type = json.getString("type");
+		if (type.equals("FeatureCollection")) {
+			return decodeFeatureCollection(json);
+		} else if (type.equals("Feature")) {
+			return decodeFeature(json);
+		} else if (type.equals("GeometryCollection")) {
+			return decodeGeometryCollection(json);
+		} else {
+			return decodeGeometry(json);
+		}
+	}
 
-    private MfFeatureCollection decodeFeatureCollection(JSONObject json) throws JSONException {
-        JSONArray features = json.getJSONArray("features");
-        Collection<MfFeature> collection = new ArrayList<MfFeature>(features.length());
-        for (int cpt = 0; cpt < features.length(); ++cpt) {
-            collection.add(decodeFeature(features.getJSONObject(cpt)));
-        }
-        return mfFactory.createFeatureCollection(collection);
-    }
+	protected MfFeatureCollection decodeFeatureCollection(JSONObject json) throws JSONException {
+		JSONArray features = json.getJSONArray("features");
+		Collection<MfFeature> collection = new ArrayList<MfFeature>(features.length());
+		for (int cpt = 0; cpt < features.length(); ++cpt) {
+			collection.add(decodeFeature(features.getJSONObject(cpt)));
+		}
+		return mfFactory.createFeatureCollection(collection);
+	}
 
-    private MfFeature decodeFeature(JSONObject json) throws JSONException {
-        JSONObject geometry = json.optJSONObject("geometry");
-        String id = json.optString("id", null);
-        JSONObject properties = json.getJSONObject("properties");
-        return mfFactory.createFeature(id, decodeGeometry(geometry), properties);
-    }
+	protected MfFeature decodeFeature(JSONObject json) throws JSONException {
+		JSONObject geometry = json.optJSONObject("geometry");
+		String id = json.optString("id", null);
+		JSONObject properties = json.getJSONObject("properties");
+		return mfFactory.createFeature(id, decodeGeometry(geometry), properties);
+	}
 
-    private MfGeometry decodeGeometry(JSONObject json) throws JSONException {
-        return mfFactory.createGeometry(decodeJtsGeometry(json));
-    }
+	protected MfGeometry decodeGeometry(JSONObject json) throws JSONException {
+		return mfFactory.createGeometry(decodeJtsGeometry(json));
+	}
 
-    private Geometry decodeJtsGeometry(JSONObject json) throws JSONException {
-        if (json == null) {
-          return null;
-        }
-        String type = json.getString("type");
-        final Geometry geometry;
+	protected MfGeometryCollection decodeGeometryCollection(JSONObject json) throws JSONException {
+		return mfFactory.createGeometryCollection(decodeJtsGeometry(json));
+	}
 
+	protected Geometry decodeJtsGeometry(JSONObject json) throws JSONException {
+		if (json == null) {
+			return null;
+		}
+		String type = json.getString("type");
+		final Geometry geometry;
 
-        if (type.equals("GeometryCollection")) {
-            JSONArray geoCoords = json.getJSONArray("geometries");
-            Geometry[] geometries = new Geometry[geoCoords.length()];
-            for (int i = 0; i < geometries.length; ++i) {
-                geometries[i] = decodeJtsGeometry(geoCoords.getJSONObject(i));
-            }
-            geometry = jtsFactory.createGeometryCollection(geometries);
+		if (type.equals("GeometryCollection")) {
+			JSONArray geoCoords = json.getJSONArray("geometries");
+			Geometry[] geometries = new Geometry[geoCoords.length()];
+			for (int i = 0; i < geometries.length; ++i) {
+				geometries[i] = decodeJtsGeometry(geoCoords.getJSONObject(i));
+			}
+			geometry = jtsFactory.createGeometryCollection(geometries);
 
-        } else {
-            JSONArray coordinates = json.getJSONArray("coordinates");
+		} else {
+			JSONArray coordinates = json.getJSONArray("coordinates");
 
-            if (type.equals("Point")) {
-                geometry = jtsFactory.createPoint(decodeCoordinate(coordinates));
+			if (type.equals("Point")) {
+				geometry = jtsFactory.createPoint(decodeCoordinate(coordinates));
 
-            } else if (type.equals("LineString")) {
-                geometry = jtsFactory.createLineString(decodeCoordinates(coordinates));
+			} else if (type.equals("LineString")) {
+				geometry = jtsFactory.createLineString(decodeCoordinates(coordinates));
 
-            } else if (type.equals("Polygon")) {
-                geometry = decodePolygon(coordinates);
+			} else if (type.equals("Polygon")) {
+				geometry = decodePolygon(coordinates);
 
-            } else if (type.equals("MultiPoint")) {
-                Point[] points = new Point[coordinates.length()];
-                for (int i = 0; i < points.length; ++i) {
-                    points[i] = jtsFactory.createPoint(decodeCoordinate(coordinates.getJSONArray(i)));
+			} else if (type.equals("MultiPoint")) {
+				Point[] points = new Point[coordinates.length()];
+				for (int i = 0; i < points.length; ++i) {
+					points[i] = jtsFactory.createPoint(decodeCoordinate(coordinates.getJSONArray(i)));
 
-                }
-                geometry = jtsFactory.createMultiPoint(points);
+				}
+				geometry = jtsFactory.createMultiPoint(points);
 
-            } else if (type.equals("MultiLineString")) {
-                LineString[] lineStrings = new LineString[coordinates.length()];
-                for (int i = 0; i < lineStrings.length; ++i) {
-                    lineStrings[i] = jtsFactory.createLineString(decodeCoordinates(coordinates.getJSONArray(i)));
-                }
-                geometry = jtsFactory.createMultiLineString(lineStrings);
+			} else if (type.equals("MultiLineString")) {
+				LineString[] lineStrings = new LineString[coordinates.length()];
+				for (int i = 0; i < lineStrings.length; ++i) {
+					lineStrings[i] = jtsFactory.createLineString(decodeCoordinates(coordinates.getJSONArray(i)));
+				}
+				geometry = jtsFactory.createMultiLineString(lineStrings);
 
-            } else if (type.equals("MultiPolygon")) {
-                Polygon[] polygons = new Polygon[coordinates.length()];
-                for (int i = 0; i < polygons.length; ++i) {
-                    polygons[i] = decodePolygon(coordinates.getJSONArray(i));
+			} else if (type.equals("MultiPolygon")) {
+				Polygon[] polygons = new Polygon[coordinates.length()];
+				for (int i = 0; i < polygons.length; ++i) {
+					polygons[i] = decodePolygon(coordinates.getJSONArray(i));
 
-                }
-                geometry = jtsFactory.createMultiPolygon(polygons);
+				}
+				geometry = jtsFactory.createMultiPolygon(polygons);
 
-            } else {
-                return null;
-            }
-        }
+			} else {
+				return null;
+			}
+		}
 
-        return geometry;
-    }
+		return geometry;
+	}
 
-    private Polygon decodePolygon(JSONArray coordinates) throws JSONException {
-        LinearRing outer = jtsFactory.createLinearRing(decodeCoordinates(coordinates.getJSONArray(0)));
-        LinearRing[] holes = new LinearRing[coordinates.length() - 1];
-        for (int i = 1; i < coordinates.length(); ++i) {
-            holes[i - 1] = jtsFactory.createLinearRing(decodeCoordinates(coordinates.getJSONArray(i)));
-        }
-        return jtsFactory.createPolygon(outer, holes);
-    }
+	protected Polygon decodePolygon(JSONArray coordinates) throws JSONException {
+		LinearRing outer = jtsFactory.createLinearRing(decodeCoordinates(coordinates.getJSONArray(0)));
+		LinearRing[] holes = new LinearRing[coordinates.length() - 1];
+		for (int i = 1; i < coordinates.length(); ++i) {
+			holes[i - 1] = jtsFactory.createLinearRing(decodeCoordinates(coordinates.getJSONArray(i)));
+		}
+		return jtsFactory.createPolygon(outer, holes);
+	}
 
-    private Coordinate[] decodeCoordinates(JSONArray coordinates) throws JSONException {
-        Coordinate[] result = new Coordinate[coordinates.length()];
-        for (int i = 0; i < result.length; ++i) {
-            result[i] = decodeCoordinate(coordinates.getJSONArray(i));
-        }
-        return result;
-    }
+	protected Coordinate[] decodeCoordinates(JSONArray coordinates) throws JSONException {
+		Coordinate[] result = new Coordinate[coordinates.length()];
+		for (int i = 0; i < result.length; ++i) {
+			result[i] = decodeCoordinate(coordinates.getJSONArray(i));
+		}
+		return result;
+	}
 
-    private Coordinate decodeCoordinate(JSONArray coord) throws JSONException {
-        if (coord.length() > 2) {
-            return new Coordinate(coord.getDouble(0), coord.getDouble(1), coord.getDouble(2));
-        } else {
-            return new Coordinate(coord.getDouble(0), coord.getDouble(1));
-        }
-    }
+	protected Coordinate decodeCoordinate(JSONArray coord) throws JSONException {
+		if (coord.length() > 2) {
+			return new Coordinate(coord.getDouble(0), coord.getDouble(1), coord.getDouble(2));
+		} else {
+			return new Coordinate(coord.getDouble(0), coord.getDouble(1));
+		}
+	}
 
 }

@@ -19,19 +19,24 @@
 
 package org.mapfish.geo;
 
-import com.vividsolutions.jts.geom.Geometry;
-import org.json.JSONObject;
-
 import java.util.Collection;
 
+import org.json.JSONObject;
+
+import com.vividsolutions.jts.geom.Geometry;
+
 public abstract class MfGeoFactory {
-    public MfFeatureCollection createFeatureCollection(Collection<MfFeature> collection) {
-        return new MfFeatureCollection(collection);
-    }
+	public MfFeatureCollection createFeatureCollection(Collection<MfFeature> collection) {
+		return new MfFeatureCollection(collection);
+	}
 
-    public abstract MfFeature createFeature(String id, MfGeometry geometry, JSONObject properties);
+	public abstract MfFeature createFeature(String id, MfGeometry geometry, JSONObject properties);
 
-    public MfGeometry createGeometry(Geometry jtsGeometry) {
-        return new MfGeometry(jtsGeometry);
-    }
+	public MfGeometry createGeometry(Geometry jtsGeometry) {
+		return new MfGeometry(jtsGeometry);
+	}
+
+	public MfGeometryCollection createGeometryCollection(Geometry jtsGeometry) {
+		return new MfGeometryCollection(jtsGeometry);
+	}
 }
