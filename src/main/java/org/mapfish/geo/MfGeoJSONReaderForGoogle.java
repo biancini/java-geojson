@@ -16,11 +16,17 @@ public class MfGeoJSONReaderForGoogle extends MfGeoJSONReader {
 		Coordinate[] result = new Coordinate[numCoordinates + 1];
 		for (int i = 0; i < numCoordinates; ++i) {
 			JSONArray arrCoords = coordinates.getJSONArray(i);
-			arrCoords = new JSONArray(new Object[] { arrCoords.get(2), arrCoords.get(1) });
+			switch (arrCoords.length()) {
+			case 3:
+				arrCoords = new JSONArray(new Object[] { arrCoords.get(2), arrCoords.get(1) });
+				break;
+			case 2:
+				arrCoords = new JSONArray(new Object[] { arrCoords.get(1), arrCoords.get(0) });
+				break;
+			}
 			result[i] = decodeCoordinate(arrCoords);
 		}
 		result[numCoordinates] = result[0];
 		return result;
 	}
-
 }
